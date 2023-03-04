@@ -205,7 +205,8 @@
    [(and (< (posn-x (tetra-center tetra)) (brick-x (first (tetra-brick tetra))))
          (= (posn-y (tetra-center tetra)) (brick-y (first (tetra-brick tetra))))) (make-brick (- (brick-x (first(tetra-brick tetra))) 20) (- (brick-y (first(tetra-brick tetra))) 20) (brick-color (first(tetra-brick tetra))))]
    [else (first (tetra-brick tetra))]))
-     
+
+
 (big-bang (make-world tetra-t '())
   (on-tick next 0.2)
   (on-key keymovement)
