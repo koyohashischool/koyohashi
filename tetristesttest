@@ -1,0 +1,195 @@
+(require 2htdp/image)
+(require 2htdp/universe)
+
+;Part 1:Creating Background and Tetra Pieces;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; A Brick is a (make-brick Number Number Color)
+
+(define-struct brick [x y color])
+
+;;; A Pt (2D point) is a (make-posn Integer Integer)
+;;;
+;;; A Tetra is a (make-tetra Pt Bricks)
+;;; The center point is the point around which the tetra
+;;; rotates when it spins.
+;(define-struct tetra [center bricks])
+
+;;; A Bricks (Set of Bricks) is one of:
+;;; - empty
+;;; - (cons Brick Bricks)
+;;; Order does not matter.
+
+;;; A World is a (make-world Tetra Pile)
+;;;  Pile of bricks at the bottom of the screen.
+;one of empty scene
+;bricks pile 
+
+(define-struct world [tetra pile])
+
+(define-struct tetra [center brick])
+
+;background;
+;;;;;;;;;;;;
+
+;a black empty scene
+(define background (empty-scene 200 400 "black"))
+
+
+;tetra-t is made up of purple bricks
+(define purplesquare (overlay (square 20 "outline" "black") (square 20 "solid" "purple")))
+
+;left brick
+(define left-t (make-brick 70 30 purplesquare))
+;middle brick
+(define middle-t (make-brick 90 30 purplesquare))
+;right brick
+(define right-t (make-brick 110 30 purplesquare))
+;top-middle brick
+(define topmiddle-t (make-brick 90 10 purplesquare))
+
+(define brick-t (cons left-t (cons middle-t (cons right-t (cons topmiddle-t '())))))
+
+
+(define center-t (make-posn 90 30))
+(define tetra-t (make-tetra center-t brick-t))
+
+;world 
+(define (create world)
+  (cond
+    [(empty? (tetra-brick (world-tetra world))) (piledraw world)]
+    [(cons? (tetra-brick (world-tetra world))) (place-image
+                     (brick-color (first (tetra-brick (world-tetra world)))) (brick-x (first (tetra-brick (world-tetra world)))) (brick-y (first (tetra-brick (world-tetra world))))
+                      (create (make-world (make-tetra (tetra-center (world-tetra world)) (rest (tetra-brick (world-tetra world)))) (world-pile world))))]
+    [else (gameover world)]))
+;world->world
+(define (goingdown world)
+     (make-world (make-tetra (tetra-center (world-tetra world)) (helpergoingdown (tetra-brick (world-tetra world)))) (world-pile world)))
+
+;helper function
+(define (helpergoingdown lob)
+  (cond
+   [(empty? lob) '()]
+   [(cons? lob) (cons (make-brick (brick-x (first lob)) (+ 20 (brick-y (first lob))) (brick-color (first lob)))
+                     (helpergoingdown (rest lob)))]))
+
+;world->boolean
+(define (bottom? world)
+  (cond
+    [(empty? (tetra-brick (world-tetra world))) #f]
+    [(cons? (tetra-brick (world-tetra world))) (if (or (<= 380 (brick-y (first (tetra-brick (world-tetra world))))) (bottomhelper? world)) #t (bottom? (make-world (make-tetra (tetra-center (world-tetra world)) (rest (tetra-brick (world-tetra world)))) (world-pile world))))]))
+
+;helper goes thorugh the first world tetra and goes through every rest pile
+
+;world->boolean
+(define (bottomhelper? world)
+          (cond
+             [(empty? (world-pile world)) #f]
+             [(cons? (world-pile world)) (if (and (= (brick-x (first (tetra-brick (world-tetra world)))) (brick-x (first (world-pile world)))) (= (+ (brick-y (first (tetra-brick (world-tetra world)))) 20) (brick-y (first (world-pile world)))))
+                                             #t
+                                             (bottomhelper? (make-world (world-tetra world) (rest (world-pile world)))))]))
+
+;world->image
+;the world become a image 
+(define (gameover world)
+  (place-image (text "GAME OVER" 25 "white") 100 175 (place-image (text "SCORE" 20 "white") 100 195 (place-image (text (number->string (countpoints world)) 20 "white") 100 215 background))))
+
+;world->boolean
+(define (top? world)
+  (cond
+    [(empty? (world-pile world)) #f]
+    [(cons? (world-pile world)) (if (= 10 (brick-y (first (world-pile world)))) #t (top? (make-world (world-tetra world) (rest (world-pile world)))))]))
+
+;world->number
+(define (countpoints world)
+  (cond
+   [(empty? (world-pile world)) 0]
+   [(cons? (world-pile world)) (+ 1 (countpoints (make-world (world-tetra world) (rest (world-pile world)))))]))
+;world->world
+;shows next world
+(define (next world)
+  (cond
+  [(top? world) (make-world "done" (world-pile world))]
+  [(bottom? world) (make-world tetra-t (addpile world))]
+  [else (goingdown world)]))
+
+;world->world
+;adds tetra into world-pile
+(define (addpile world)
+  (append (tetra-brick (world-tetra world)) (world-pile world)))
+   
+ 
+;pileimage:world->image
+;starts with only background then add everything up
+(define (piledraw world)
+  (cond
+    [(empty? (world-pile world)) background]
+    [(cons? (world-pile world)) (place-image (brick-color (first (world-pile world)))
+                                             (brick-x (first (world-pile world)))
+                                             (brick-y (first (world-pile world)))
+                                             (piledraw (make-world (world-tetra world) (rest (world-pile world)))))]))
+;left
+(define (moveleft world)
+  (make-world (if (left? world) (world-tetra world) (helpermoveleft (tetra-brick (world-tetra world)))) (world-pile world)))
+
+(define (left? world)
+  (cond
+    [(empty? (tetra-brick (world-tetra world))) #f]
+    [(cons? (tetra-brick (world-tetra world))) (if (or (= 10 (brick-x (first (tetra-brick (world-tetra world))))) (helperleft? world)) #t (left? (make-world (make-tetra (tetra-center (world-tetra world)) (rest(tetra-brick (world-tetra world)))) (world-pile world))))]))
+
+
+(define (helperleft? world)
+  (cond
+    [(empty? (world-pile world)) #f]
+    [(cons? (world-pile world)) (if (and (= (brick-y (first (tetra-brick (world-tetra world)))) (brick-y (first (world-pile world)))) (= (- (brick-x (first (tetra-brick (world-tetra world)))) 20) (brick-x (first (world-pile world)))))
+                                    #t
+                                    (helperleft? (make-world (world-tetra world) (rest (world-pile world)))))]))
+
+(define (helpermoveleft lob)
+  (cond
+   [(empty? lob) '()]
+   [(cons? lob) (cons (make-brick (- (brick-x (first lob)) 20) (brick-y (first lob)) (brick-color (first lob)))
+                     (helpermoveleft (rest lob)))]))
+
+;right 
+(define (moveright world)
+  (make-world (if (right? world) (world-tetra world) (helpermoveright (tetra-brick (world-tetra world)))) (world-pile world)))
+
+(define (right? world)
+  (cond
+    [(empty? (tetra-brick (world-tetra world))) #f]
+    [(cons? (tetra-brick (world-tetra world))) (if (or (= 190 (brick-x (first (tetra-brick (world-tetra world))))) (helperright? world)) #t (right? (make-world (make-tetra (tetra-center (world-tetra world)) (rest(tetra-brick (world-tetra world)))) (world-pile world))))]))
+
+(define (helperright? world)
+  (cond
+    [(empty? (world-pile world)) #f]
+    [(cons? (world-pile world)) (if (and (= (brick-y (first (tetra-brick (world-tetra world)))) (brick-y (first (world-pile world)))) (= (+ (brick-x (first (tetra-brick (world-tetra world)))) 20) (brick-x (first (world-pile world)))))
+                                    #t
+                                    (helperright? (make-world (world-tetra world) (rest (world-pile world)))))]))
+    
+
+(define (helpermoveright lob)
+  (cond
+   [(empty? lob) '()]
+   [(cons? lob) (cons (make-brick (+ (brick-x (first lob)) 20) (brick-y (first lob)) (brick-color (first lob)))
+                     (helpermoveright (rest lob)))]))
+                   
+(define (leftorright world key)
+    (cond
+      [(key=? "left" key) (moveleft world)]
+      [(key=? "right" key) (moveright world)]
+      [else world]))
+
+
+;t-block spin
+
+     
+(big-bang (make-world tetra-t '())
+  (on-tick next 0.1)
+  (on-key leftorright)
+  (to-draw create))
+
+
+
+
+
+
