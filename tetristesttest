@@ -63,7 +63,7 @@
     [else (gameover world)]))
 ;world->world
 (define (goingdown world)
-     (make-world (make-tetra (tetra-center (world-tetra world)) (helpergoingdown (tetra-brick (world-tetra world)))) (world-pile world)))
+     (make-world (make-tetra (make-posn (posn-x (tetra-center (world-tetra world))) (+ 20 (posn-y (tetra-center (world-tetra world))))) (helpergoingdown (tetra-brick (world-tetra world)))) (world-pile world)))
 
 ;helper function
 (define (helpergoingdown lob)
@@ -108,7 +108,7 @@
 ;shows next world
 (define (next world)
   (cond
-  [(top? world) (make-world "done" (world-pile world))]
+  [(top? world) (make-world (make-tetra "done" "done") (world-pile world))]
   [(bottom? world) (make-world tetra-t (addpile world))]
   [else (goingdown world)]))
 
@@ -129,7 +129,7 @@
                                              (piledraw (make-world (world-tetra world) (rest (world-pile world)))))]))
 ;left
 (define (moveleft world)
-  (make-world (if (left? world) (world-tetra world) (helpermoveleft (tetra-brick (world-tetra world)))) (world-pile world)))
+  (make-world (if (left? world) (world-tetra world) (make-tetra (make-posn (- (posn-x (tetra-center (world-tetra world))) 20) (posn-y (tetra-center (world-tetra world)))) (helpermoveleft (tetra-brick (world-tetra world))))) (world-pile world)))
 
 (define (left? world)
   (cond
@@ -152,7 +152,7 @@
 
 ;right 
 (define (moveright world)
-  (make-world (if (right? world) (world-tetra world) (helpermoveright (tetra-brick (world-tetra world)))) (world-pile world)))
+  (make-world (if (right? world) (world-tetra world) (make-tetra (make-posn (+ (posn-x (tetra-center (world-tetra world))) 20) (posn-y (tetra-center (world-tetra world)))) (helpermoveright (tetra-brick (world-tetra world))))) (world-pile world)))
 
 (define (right? world)
   (cond
@@ -173,21 +173,43 @@
    [(cons? lob) (cons (make-brick (+ (brick-x (first lob)) 20) (brick-y (first lob)) (brick-color (first lob)))
                      (helpermoveright (rest lob)))]))
                    
-(define (leftorright world key)
+(define (keymovement world key)
     (cond
       [(key=? "left" key) (moveleft world)]
       [(key=? "right" key) (moveright world)]
+      [(key=? "z" key) (cwtspin world)]
+      [(key=? "up" key) (cwtspin (cwtspin (cwtspin world)))]
       [else world]))
 
 
 ;t-block spin
 
+(define (cwtspin world)
+  (make-world (make-tetra (tetra-center (world-tetra world)) (helpercwtspin world)) (world-pile world)))
+
+
+(define (helpercwtspin world)
+  (cond
+    [(empty? (tetra-brick (world-tetra world))) '()]
+    [(cons? (tetra-brick (world-tetra world))) (cons (helperhelpercwtspin (world-tetra world)) (helpercwtspin (make-world (make-tetra (tetra-center (world-tetra world)) (rest (tetra-brick (world-tetra world)))) (world-pile world))))]))
+
+;tetra->brick
+(define (helperhelpercwtspin tetra)
+  (cond
+   [(and (= (posn-x (tetra-center tetra)) (brick-x (first (tetra-brick tetra))))
+         (< (posn-y (tetra-center tetra)) (brick-y (first (tetra-brick tetra))))) (make-brick (+ (brick-x (first(tetra-brick tetra))) 20) (- (brick-y (first(tetra-brick tetra))) 20) (brick-color (first(tetra-brick tetra))))]
+   [(and (= (posn-x (tetra-center tetra)) (brick-x (first (tetra-brick tetra))))
+         (> (posn-y (tetra-center tetra)) (brick-y (first (tetra-brick tetra))))) (make-brick (- (brick-x (first(tetra-brick tetra))) 20) (+ (brick-y (first(tetra-brick tetra))) 20) (brick-color (first(tetra-brick tetra))))]
+   [(and (> (posn-x (tetra-center tetra)) (brick-x (first (tetra-brick tetra))))
+         (= (posn-y (tetra-center tetra)) (brick-y (first (tetra-brick tetra))))) (make-brick (+ (brick-x (first(tetra-brick tetra))) 20) (+ (brick-y (first(tetra-brick tetra))) 20) (brick-color (first(tetra-brick tetra))))]
+   [(and (< (posn-x (tetra-center tetra)) (brick-x (first (tetra-brick tetra))))
+         (= (posn-y (tetra-center tetra)) (brick-y (first (tetra-brick tetra))))) (make-brick (- (brick-x (first(tetra-brick tetra))) 20) (- (brick-y (first(tetra-brick tetra))) 20) (brick-color (first(tetra-brick tetra))))]
+   [else (first (tetra-brick tetra))]))
      
 (big-bang (make-world tetra-t '())
-  (on-tick next 0.1)
-  (on-key leftorright)
+  (on-tick next 0.2)
+  (on-key keymovement)
   (to-draw create))
-
 
 
 
